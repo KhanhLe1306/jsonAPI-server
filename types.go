@@ -17,6 +17,11 @@ func NewAccount(firstName, lastName string) *Account{
 	}
 }
 
+type AddAccountRequest struct {
+	FirstName	string 	`json:"firstName"`
+	LastName 	string 	`json:"lastName"`
+}
+
 
 
 

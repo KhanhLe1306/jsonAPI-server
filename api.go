@@ -41,30 +41,61 @@ func NewApiServer(listenAddr string, store *PostgresStore) *ApiServer {
 
 func (s *ApiServer) Run(){
 	s.store.Init()
-	
-	http.HandleFunc("GET /", makeHttpHandleFunc(s.handleGetAccount))
-	http.HandleFunc("DELETE /", makeHttpHandleFunc(s.handleDeleteAccount))
+
+	http.HandleFunc("GET /accounts", makeHttpHandleFunc(s.handleGetAccounts))
+	http.HandleFunc("GET /accounts/{id}", makeHttpHandleFunc(s.handleGetAccountById))
+	http.HandleFunc("POST /accounts", makeHttpHandleFunc(s.handleCreateAccount))
+	http.HandleFunc("DELETE /accounts/{id}", makeHttpHandleFunc(s.handleDeleteAccount))
 
 	log.Fatal(http.ListenAndServe(s.listenAddr, nil))
 }
 
-func (s *ApiServer) handleAccount(w http.ResponseWriter, r *http.Request) error{
+func (s *ApiServer) handleGetAccounts(w http.ResponseWriter, r *http.Request) error{
+	query := "select * from accounts"
+	rows, err := s.store.db.Query(query)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var account Account	
+		if err := rows.Scan(&account.Id, &account.FirstName, &account.LastName, &account.Balance); err != nil {
+			log.Fatal(err)
+			return err
+		}
+		log.Printf("id: %v, firstName: %s, lastName: %s, balance: %v", account.Id, account.FirstName, account.LastName, account.Balance)
+	}
 	return nil
 }
 
-func (s *ApiServer) handleGetAccount(w http.ResponseWriter, r *http.Request) error{
-	account := NewAccount("Khanh", "Le")
-	WriteJson(w, http.StatusOK, account)
+func (s *ApiServer) handleGetAccountById(w http.ResponseWriter, r *http.Request) error{
+	id := r.PathValue("id")	
+	if len(id) > 0 {
+		fmt.Println("id is", id)
+	}
 	return nil
 }
+
 
 func (s *ApiServer) handleDeleteAccount(w http.ResponseWriter, r *http.Request) error{
 	fmt.Println("This is Delete method")	
 	return nil
 }
 
-func (s *ApiServer) hanleCreateAccount(w http.ResponseWriter, r *http.Request) error{
+func (s *ApiServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) error{
+	decoder := json.NewDecoder(r.Body)
+	var body AddAccountRequest
+	if err := decoder.Decode(&body); err != nil {
+		return err
+	}
+	
+	query := fmt.Sprintf("insert into accounts (first_name, last_name, balance) values ('%v', '%v', %v)", body.FirstName, body.LastName, 0) 
+	
+	if _, err := s.store.db.Exec(query); err != nil {
+		return err 
+	}
 	return nil
+
 }
 
 
