@@ -57,28 +57,52 @@ func (s *ApiServer) handleGetAccounts(w http.ResponseWriter, r *http.Request) er
 		return err
 	}
 	defer rows.Close()
+	var accounts []Account
 	for rows.Next() {
 		var account Account	
 		if err := rows.Scan(&account.Id, &account.FirstName, &account.LastName, &account.Balance); err != nil {
 			log.Fatal(err)
 			return err
 		}
-		log.Printf("id: %v, firstName: %s, lastName: %s, balance: %v", account.Id, account.FirstName, account.LastName, account.Balance)
+		accounts = append(accounts, account)
 	}
+	WriteJson(w, http.StatusOK, accounts)
 	return nil
 }
 
 func (s *ApiServer) handleGetAccountById(w http.ResponseWriter, r *http.Request) error{
 	id := r.PathValue("id")	
-	if len(id) > 0 {
-		fmt.Println("id is", id)
+	query := fmt.Sprintf("select * from accounts where id = %v", id)
+	rows, err := s.store.db.Query(query)
+
+	if err != nil {
+		log.Fatal(err)
+		return err
+	}	
+	
+	defer rows.Close()
+	var account Account
+	for rows.Next() {
+		if err := rows.Scan(&account.Id, &account.FirstName, &account.LastName, &account.Balance); err != nil {
+			return err
+		}
 	}
+	WriteJson(w, http.StatusOK, account)	
 	return nil
 }
 
 
 func (s *ApiServer) handleDeleteAccount(w http.ResponseWriter, r *http.Request) error{
-	fmt.Println("This is Delete method")	
+	id := r.PathValue("id")	
+	query := fmt.Sprintf("delete from accounts where id = %v", id)
+	_, err := s.store.db.Exec(query)
+
+	if err != nil {
+		log.Fatal(err)
+		return err
+	}	
+	
+	WriteJson(w, http.StatusOK, "User has been deleted")	
 	return nil
 }
 
@@ -95,7 +119,6 @@ func (s *ApiServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) 
 		return err 
 	}
 	return nil
-
 }
 
 
